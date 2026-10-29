@@ -971,16 +971,10 @@ def server(input, output, session):
         if show["chk_hdb"]:
             out += [ui.HTML('<hr class="rule">'),
                     section_title("Healthy Diet Basket Components")]
-            # Food-type diversity is an HDB rule only when HDB is the sole criterion,
-            # so don't report it for a diet optimized for HDB together with others.
-            meta = opt_meta()
-            applied = (meta.get("applied", [])
-                       if (meta and not meta.get("infeasible")) else [])
-            multi = optimize.HDB_WITH_DIVERSITY in applied and len(applied) > 1
+            # Food-type diversity is enforced whenever the user picks the "with
+            # diversity" variant, so the verdict is reported in every case.
             failing = [r for r in hdb["rows"] if not r["meets_diversity"]]
-            if multi:
-                pass
-            elif failing:
+            if failing:
                 out.append(note("warning", ui.HTML(
                     "⚠️ Minimum food-group diversity not met: "
                     + "; ".join(f"{_html.escape(r['group'])} ({r['n_items']}/"

@@ -636,10 +636,14 @@ def _solve_guideline_set(active, *, catalog, prices_df, hei_bounds, dri,
     hdb_with = HDB_WITH_DIVERSITY in names
     hdb_without = HDB_WITHOUT_DIVERSITY in names
     enforce_hdb = hdb_with or hdb_without
-    # Food-type diversity (and the equal-calorie rule) apply ONLY when HDB is the
-    # single criterion the user chose. Combined with DRI and/or HEI, HDB means the
-    # six group-energy shares only. Excluded foods are never used when HDB is on.
-    enforce_div = hdb_with and hdb_only
+    # Food-type diversity applies whenever the user picks the "with diversity"
+    # variant, on its own or alongside DRI and/or HEI.
+    enforce_div = hdb_with
+    # The equal-calorie rule (every used type in a group supplies the same
+    # calories) is relaxed when HDB is combined with another criterion: stacked on
+    # DRI bounds and an HEI floor it is usually infeasible, and it is the one HDB
+    # rule that is a modelling choice rather than part of the guideline.
+    enforce_equal = hdb_with and hdb_only
     hei_target = next((t for (nm, t) in active if nm == "HEI 2020"), 0.0)
     # "Thrifty Food Plan" adds nothing (undefined) — silently contributes no rules.
 
@@ -649,7 +653,7 @@ def _solve_guideline_set(active, *, catalog, prices_df, hei_bounds, dri,
         dri=(dri if enforce_dri else None),
         enforce_hei_floor=enforce_hei, enforce_hdb=enforce_hdb,
         enforce_hdb_diversity=enforce_div,  # only the "with diversity" variant
-        hdb_equal_types=enforce_div,
+        hdb_equal_types=enforce_equal,
         integer_grams=False,
     )
     if out is None:
@@ -712,9 +716,10 @@ def optimize_criteria(criteria, *, catalog, prices_df, hei_bounds, dri,
                      "distinct-items-per-group rule is NOT applied — expect groups to "
                      "collapse onto the cheapest single food.")
 
-    # HDB-only rules (food-type diversity + equal calories per type) switch on only
-    # when HDB is the single criterion the user chose. Decided from the user's
-    # selection, so a fallback subset of a larger selection never turns them on.
+    # The equal-calorie-per-type rule switches on only when HDB is the single
+    # criterion the user chose (food-type diversity now applies in every case).
+    # Decided from the user's selection, so a fallback subset of a larger
+    # selection never turns it on.
     hdb_only = names == [HDB_WITH_DIVERSITY]
 
     for size in range(len(crit), 0, -1):
