@@ -1,0 +1,4 @@
+# Extra packages ShinyLive installs into Pyodide at page load (micropip).
+# pandas, numpy and scipy ship with Pyodide, so they are deliberately NOT listed.
+plotly
+openpyxl

@@ -1,0 +1,73 @@
+# Builds the browser-only (ShinyLive) version of the calculator.
+#
+#  • Always: packages the offline Windows bundle and attaches it to the run as a
+#    downloadable artifact.
+#  • Pages deploy: runs only in the public repository (wanqingxu-nutrition/OnTarget-ShinyLive).
+#    In the private development repo the build runs as a check and the deploy
+#    job is skipped.
+name: Build ShinyLive site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install shiny shinylive
+
+      # shinylive downloads a ~400 MB asset bundle on first export; cache it.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/shinylive
+          key: shinylive-${{ runner.os }}-${{ hashFiles('app/requirements.txt') }}
+          restore-keys: shinylive-${{ runner.os }}-
+
+      - name: Build the static site
+        run: shinylive export app site
+
+      - name: Package the offline Windows bundle
+        run: |
+          mkdir -p bundle
+          cp -r site bundle/site
+          cp -r offline/tools bundle/tools
+          cp offline/Start-OnTarget.bat offline/README-FIRST.txt bundle/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OnTarget-Offline-Windows
+          path: bundle/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    # Only the public repository publishes. The private development repo runs
+    # the build as a check and stops there.
+    if: github.repository == 'wanqingxu-nutrition/OnTarget-ShinyLive'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
